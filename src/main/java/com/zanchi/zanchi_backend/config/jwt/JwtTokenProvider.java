@@ -1,23 +1,35 @@
 package com.zanchi.zanchi_backend.config.jwt;
 
 import io.jsonwebtoken.*;
+import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import java.security.Key;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
 @Component
 public class JwtTokenProvider {
 
+    private static final int MIN_SECRET_BYTES = 32;
+    private static final String PLACEHOLDER_SECRET = "PASTE_BASE64_SECRET_HERE";
+
+    private final String jwtSecret;
     private Key secretKey;
+
+    public JwtTokenProvider(@Value("${jwt.secret:}") String jwtSecret) {
+        this.jwtSecret = jwtSecret;
+    }
 
     @PostConstruct
     public void init() {
-        this.secretKey = Keys.secretKeyFor(SignatureAlgorithm.HS256);
+        this.secretKey = Keys.hmacShaKeyFor(resolveSecretBytes(jwtSecret));
     }
 
     public String createToken(String loginId) {
@@ -81,5 +93,29 @@ public class JwtTokenProvider {
                 .getBody()
                 .getExpiration()
                 .getTime() - System.currentTimeMillis();
+    }
+
+    private byte[] resolveSecretBytes(String secret) {
+        if (!StringUtils.hasText(secret) || PLACEHOLDER_SECRET.equals(secret.trim())) {
+            throw new IllegalStateException("jwt.secret must be provided with at least 256 bits.");
+        }
+
+        String trimmed = secret.trim();
+        byte[] decoded = tryDecodeBase64(trimmed);
+        byte[] keyBytes = decoded != null ? decoded : trimmed.getBytes(StandardCharsets.UTF_8);
+
+        if (keyBytes.length < MIN_SECRET_BYTES) {
+            throw new IllegalStateException("jwt.secret must be at least 32 bytes for HS256.");
+        }
+
+        return keyBytes;
+    }
+
+    private byte[] tryDecodeBase64(String secret) {
+        try {
+            return Decoders.BASE64.decode(secret);
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
     }
 }
