@@ -1,6 +1,7 @@
 package com.zanchi.zanchi_backend.config.jwt;
 
 import io.jsonwebtoken.*;
+import io.jsonwebtoken.io.DecodingException;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
@@ -114,7 +115,7 @@ public class JwtTokenProvider {
     private byte[] tryDecodeBase64(String secret) {
         try {
             return Decoders.BASE64.decode(secret);
-        } catch (IllegalArgumentException ignored) {
+        } catch (IllegalArgumentException | DecodingException ignored) {
             return null;
         }
     }
