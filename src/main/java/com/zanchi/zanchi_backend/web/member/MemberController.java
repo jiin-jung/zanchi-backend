@@ -9,6 +9,7 @@ import com.zanchi.zanchi_backend.web.member.form.MemberForm;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
@@ -51,12 +52,21 @@ public class MemberController {
     }
 
     @DeleteMapping("/members/{id}")
-    public ResponseEntity<?> deleteMember(@PathVariable Long id) {
+    public ResponseEntity<?> deleteMember(
+            @PathVariable Long id,
+            @AuthenticationPrincipal(expression = "member.id") Long requesterId
+    ) {
+        if (requesterId == null) {
+            return ResponseEntity.status(401).body(Map.of("status", "fail", "message", "로그인이 필요합니다."));
+        }
+
         try {
-            memberService.deleteById(id);
+            memberService.deleteById(id, requesterId);
             return ResponseEntity.ok(Map.of("status", "success", "message", "회원 삭제 완료"));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("status", "fail", "message", e.getMessage()));
+        } catch (AccessDeniedException e) {
+            return ResponseEntity.status(403).body(Map.of("status", "fail", "message", e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(500).body(Map.of("status", "fail", "message", "서버 오류 발생"));
         }
