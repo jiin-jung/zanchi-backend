@@ -67,12 +67,15 @@ public class SecurityConfig {
                         // 공개 API
                         .requestMatchers(
                                 "/api/login", "/api/auth/**", "/api/signup",
-                                "/api/members", "/api/members/**",
                                 "/api/shows/**"
                         ).permitAll()
 
-                        // 공개 멤버 요약
-                        .requestMatchers(HttpMethod.GET, "/api/members/*/summary").permitAll()
+                        // 공개 멤버 조회 API
+                        .requestMatchers(HttpMethod.GET, "/api/members", "/api/members/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/members/summaries").permitAll()
+
+                        // 회원 삭제 API
+                        .requestMatchers(HttpMethod.DELETE, "/api/members/*").authenticated()
 
                         // S3 Presign (임시 공개)
                         .requestMatchers(HttpMethod.POST, "/api/s3/presign-put", "/s3/presign-put").permitAll()

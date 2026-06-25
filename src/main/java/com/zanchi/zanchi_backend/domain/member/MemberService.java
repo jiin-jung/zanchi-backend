@@ -1,8 +1,10 @@
 package com.zanchi.zanchi_backend.domain.member;
 
 import com.zanchi.zanchi_backend.domain.member.dto.ChangeNameResponse;
+import com.zanchi.zanchi_backend.domain.member.policy.MemberDeletionPolicy;
 import com.zanchi.zanchi_backend.web.member.form.MemberForm;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,6 +15,7 @@ import java.util.List;
 public class MemberService {
 
     private final MemberRepository memberRepository;
+    private final MemberDeletionPolicy memberDeletionPolicy;
 
     public void signup(MemberForm form) {
         if (memberRepository.findByLoginId(form.getLoginId()).isPresent()) {
@@ -32,11 +35,18 @@ public class MemberService {
         return memberRepository.findAll();
     }
 
-    public void deleteById(Long id) {
-        if (!memberRepository.existsById(id)) {
-            throw new IllegalArgumentException("존재하지 않는 회원입니다.");
+    @Transactional
+    public void deleteById(Long targetMemberId, Long requesterMemberId) {
+        Member requester = memberRepository.findById(requesterMemberId)
+                .orElseThrow(() -> new IllegalArgumentException("요청 회원을 찾을 수 없습니다."));
+        Member target = memberRepository.findById(targetMemberId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
+
+        if (!memberDeletionPolicy.canDelete(requester, target)) {
+            throw new AccessDeniedException("회원 삭제 권한이 없습니다.");
         }
-        memberRepository.deleteById(id);
+
+        memberRepository.delete(target);
     }
 
     @Transactional
