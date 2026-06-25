@@ -4,6 +4,7 @@ import com.zanchi.zanchi_backend.config.jwt.JwtTokenProvider;
 import com.zanchi.zanchi_backend.domain.member.Member;
 import com.zanchi.zanchi_backend.domain.member.MemberRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,6 +16,7 @@ public class LoginService {
 
     private final MemberRepository memberRepository;
     private final JwtTokenProvider jwtTokenProvider;
+    private final PasswordEncoder passwordEncoder;
 
     /**
      * 로그인 성공 시
@@ -27,7 +29,7 @@ public class LoginService {
     @Transactional
     public LoginServiceResult login(String loginId, String password) {
         Member member = memberRepository.findByLoginId(loginId)
-                .filter(m -> m.getPassword().equals(password)) // 추후 BCrypt로 교체 권장
+                .filter(m -> passwordEncoder.matches(password, m.getPassword()))
                 .orElse(null);
 
         if (member == null) {

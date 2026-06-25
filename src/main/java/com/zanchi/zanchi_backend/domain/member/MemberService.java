@@ -5,6 +5,7 @@ import com.zanchi.zanchi_backend.domain.member.policy.MemberDeletionPolicy;
 import com.zanchi.zanchi_backend.web.member.form.MemberForm;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,6 +16,7 @@ import java.util.List;
 public class MemberService {
 
     private final MemberRepository memberRepository;
+    private final PasswordEncoder passwordEncoder;
     private final MemberDeletionPolicy memberDeletionPolicy;
 
     public void signup(MemberForm form) {
@@ -25,7 +27,7 @@ public class MemberService {
         Member member = Member.builder()
                 .name(form.getName())
                 .loginId(form.getLoginId())
-                .password(form.getPassword()) //지인아 여기 암호화 해야해 나중에 시간나면 하자
+                .password(passwordEncoder.encode(form.getPassword()))
                 .build();
 
         memberRepository.save(member);
