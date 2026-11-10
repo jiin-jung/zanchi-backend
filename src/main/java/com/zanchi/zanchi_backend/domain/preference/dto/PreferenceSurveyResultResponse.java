@@ -1,4 +1,4 @@
-package com.zanchi.zanchi_backend.web.preference.dto;
+package com.zanchi.zanchi_backend.domain.preference.dto;
 
 import lombok.*;
 

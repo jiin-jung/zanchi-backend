@@ -12,7 +12,6 @@ import java.util.List;
 import java.util.Optional;
 
 // 알림용 액터 프로필 프로젝션(이름/아바타) 반환을 위해 DTO 프로젝션 인터페이스 import
-import com.zanchi.zanchi_backend.web.notification.dto.NotificationDto.ActorBrief;
 
 public interface MemberRepository extends JpaRepository<Member, Long> {
 

@@ -36,7 +36,7 @@ public class MemberController {
         }
 
         try {
-            memberService.signup(form);
+            memberService.signup(form.getName(), form.getLoginId(), form.getPassword());
             return ResponseEntity.ok(Map.of("status", "success", "message", "회원가입 성공"));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("status", "fail", "message", e.getMessage()));
