@@ -13,7 +13,7 @@ import com.zanchi.zanchi_backend.domain.notification.event.CommentCreatedEvent;
 import com.zanchi.zanchi_backend.domain.notification.event.MentionCreatedEvent;
 import com.zanchi.zanchi_backend.domain.notification.event.ReplyCreatedEvent;
 import com.zanchi.zanchi_backend.config.s3.PresignService;
-import com.zanchi.zanchi_backend.reco.service.PersonalizeCatalogService;
+import com.zanchi.zanchi_backend.domain.reco.service.PersonalizeCatalogService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;

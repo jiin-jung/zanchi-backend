@@ -1,7 +1,7 @@
 package com.zanchi.zanchi_backend.web.member;
 
 import com.zanchi.zanchi_backend.domain.member.MemberRepository;
-import com.zanchi.zanchi_backend.domain.member_follow.dto.MemberSummary;
+import com.zanchi.zanchi_backend.domain.follow.dto.MemberSummary;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;

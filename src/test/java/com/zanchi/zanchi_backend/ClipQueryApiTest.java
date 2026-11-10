@@ -6,7 +6,7 @@ import com.zanchi.zanchi_backend.domain.clip.ClipComment;
 import com.zanchi.zanchi_backend.domain.clip.ClipLike;
 import com.zanchi.zanchi_backend.domain.clip.ClipSave;
 import com.zanchi.zanchi_backend.domain.member.Member;
-import com.zanchi.zanchi_backend.domain.member_follow.MemberFollow;
+import com.zanchi.zanchi_backend.domain.follow.MemberFollow;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

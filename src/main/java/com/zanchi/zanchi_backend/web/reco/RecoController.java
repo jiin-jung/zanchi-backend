@@ -1,7 +1,7 @@
 package com.zanchi.zanchi_backend.web.reco;
 
 import com.zanchi.zanchi_backend.domain.clip.dto.ClipFeedRes;
-import com.zanchi.zanchi_backend.reco.service.RecoService;
+import com.zanchi.zanchi_backend.domain.reco.service.RecoService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;

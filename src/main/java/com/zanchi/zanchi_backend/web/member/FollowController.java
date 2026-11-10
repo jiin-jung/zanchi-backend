@@ -1,9 +1,9 @@
 package com.zanchi.zanchi_backend.web.member;
 
-import com.zanchi.zanchi_backend.domain.member_follow.FollowService;
-import com.zanchi.zanchi_backend.domain.member_follow.dto.FollowCountsRes;
-import com.zanchi.zanchi_backend.domain.member_follow.dto.FollowRes;
-import com.zanchi.zanchi_backend.domain.member_follow.dto.MemberSummary;
+import com.zanchi.zanchi_backend.domain.follow.FollowService;
+import com.zanchi.zanchi_backend.domain.follow.dto.FollowCountsRes;
+import com.zanchi.zanchi_backend.domain.follow.dto.FollowRes;
+import com.zanchi.zanchi_backend.domain.follow.dto.MemberSummary;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;

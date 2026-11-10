@@ -6,9 +6,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.zanchi.zanchi_backend.config.exception.ApiException;
-import com.zanchi.zanchi_backend.domain.audit.ReservationAudit;
-import com.zanchi.zanchi_backend.domain.audit.ReservationAuditRepository;
-import com.zanchi.zanchi_backend.domain.point.PointService;
+import com.zanchi.zanchi_backend.domain.member.PointService;
 import com.zanchi.zanchi_backend.domain.show.Show;
 import com.zanchi.zanchi_backend.domain.show.ShowRepository;
 
