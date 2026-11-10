@@ -53,7 +53,6 @@ public class SecurityConfig {
                         // Preflight
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                        .requestMatchers(HttpMethod.GET, "/api/storage/presign").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/clips/*/stream").permitAll()
                         .requestMatchers(HttpMethod.HEAD, "/api/clips/*/stream").permitAll()
 
@@ -78,9 +77,6 @@ public class SecurityConfig {
 
                         // 회원 삭제 API
                         .requestMatchers(HttpMethod.DELETE, "/api/members/*").authenticated()
-
-                        // S3 Presign (임시 공개)
-                        .requestMatchers(HttpMethod.POST, "/api/s3/presign-put", "/s3/presign-put").permitAll()
 
                         // ====== [클립/태그 공개 엔드포인트] ======
                         .requestMatchers(HttpMethod.GET, "/api/tags/**").permitAll()                 // 태그 목록/검색

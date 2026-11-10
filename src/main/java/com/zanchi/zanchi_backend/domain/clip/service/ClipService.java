@@ -9,6 +9,7 @@ import com.zanchi.zanchi_backend.domain.notification.event.LikeCreatedEvent;
 import com.zanchi.zanchi_backend.domain.notification.event.CommentCreatedEvent;
 import com.zanchi.zanchi_backend.domain.notification.event.MentionCreatedEvent;
 import com.zanchi.zanchi_backend.domain.notification.event.ReplyCreatedEvent;
+import com.zanchi.zanchi_backend.config.s3.PresignService;
 import com.zanchi.zanchi_backend.reco.service.PersonalizeCatalogService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,7 +21,6 @@ import org.springframework.data.domain.Slice;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.util.HashSet;
 import java.util.List;
@@ -41,7 +41,7 @@ public class ClipService {
     private final ClipRepository clipRepository;
     private final ClipLikeRepository likeRepository;
     private final ClipCommentRepository commentRepository;
-    private final FileStorageService storage;
+    private final PresignService presignService;
     private final MemberRepository memberRepository;
     private final ClipSaveRepository clipSaveRepository;
     private final HashtagService hashtagService;                    // 해시태그 동기화
@@ -49,44 +49,6 @@ public class ClipService {
     private final ClipCommentMentionRepository clipCommentRepo;     // 댓글 멘션
     private final ApplicationEventPublisher publisher;              // 알림 이벤트 발행
     private final PersonalizeCatalogService personalizeCatalogService;
-
-    /**
-     * 클립 업로드
-     */
-    @Transactional
-    public Clip upload(Long memberId, String caption, MultipartFile video) throws Exception {
-        if (video == null || video.isEmpty()) {
-            throw new IllegalArgumentException("video file is required");
-        }
-        final Member uploader = memberRepository.findById(memberId)
-                .orElseThrow(() -> new IllegalArgumentException("member not found"));
-
-        final String videoUrl = storage.saveVideo(video);
-
-        final Clip clip = Clip.builder()
-                .uploader(uploader)
-                .caption(caption)
-                .videoUrl(videoUrl)
-                .build();
-
-        Clip saved = clipRepository.save(clip);
-
-        // #태그 동기화
-        hashtagService.syncClipTags(saved, caption);
-
-        // @멘션 동기화(캡션)
-        upsertMentions(saved.getId(), caption);
-
-        // === Personalize 카탈로그 업서트 ===
-        try {
-            String genres = extractGenresForPersonalize(caption); // "rock|ballad" 형식
-            personalizeCatalogService.upsertClip(saved, genres);
-        } catch (Exception e) {
-            log.warn("Personalize upsert 실패: {}", e.getMessage());
-        }
-
-        return saved;
-    }
 
     /**
      * 피드 (페이지네이션)
@@ -239,40 +201,13 @@ public class ClipService {
     }
 
     @Transactional
-    public Clip replaceVideo(Long clipId, Long memberId, MultipartFile video, String caption) throws Exception {
-        if (video == null || video.isEmpty()) {
-            throw new IllegalArgumentException("video file is required");
-        }
-        Clip clip = clipRepository.findById(clipId).orElseThrow();
-        if (!clip.getUploader().getId().equals(memberId)) {
-            throw new AccessDeniedException("FORBIDDEN");
-        }
-
-        String newUrl = storage.saveVideo(video);
-        String oldUrl = clip.getVideoUrl();
-        clip.setVideoUrl(newUrl);
-
-        if (caption != null) {
-            clip.setCaption(caption);
-            // 캡션이 변경된 경우 동기화
-            hashtagService.syncClipTags(clip, caption);
-            upsertMentions(clipId, caption);
-        }
-
-        try { storage.deleteByUrl(oldUrl); } catch (Exception ignore) {}
-
-        return clip;
-    }
-
-    @Transactional
     public void deleteClip(Long clipId, Long memberId) {
         Clip clip = clipRepository.findById(clipId).orElseThrow();
         if (!clip.getUploader().getId().equals(memberId)) {
             throw new AccessDeniedException("FORBIDDEN");
         }
-        String url = clip.getVideoUrl();
+        // ponytail: S3 객체는 남김. 정리가 필요하면 S3 수명주기 규칙이나 삭제 API 추가
         clipRepository.delete(clip);
-        try { storage.deleteByUrl(url); } catch (Exception ignore) {}
     }
 
     @Transactional(readOnly = true)
@@ -410,48 +345,6 @@ public class ClipService {
         return clipRepository.findFollowingClips(userId, q == null ? "" : q.trim(), pageable);
     }
 
-    /**
-     * S3에 이미 업로드된 파일(Key 기준)로 클립을 생성한다.
-     * videoUrl 필드에는 S3 정적 URL을 저장한다.
-     */
-    @Transactional
-    public Clip createFromS3(Long memberId, String caption, String fileKey, Long showId) {
-        if (fileKey == null || fileKey.isBlank()) {
-            throw new IllegalArgumentException("fileKey is required");
-        }
-        final Member uploader = memberRepository.findById(memberId)
-                .orElseThrow(() -> new IllegalArgumentException("member not found"));
-
-        // 공백/특수문자 대비
-        String safeKey = URLEncoder.encode(fileKey, StandardCharsets.UTF_8)
-                .replace("+", "%20"); // 공백 보정
-
-        // S3 정적 URL (필요하면 CloudFront로 교체 가능)
-        String s3Url = "https://zanchi-prod-assets-855300093107-apne2-v2.s3.ap-northeast-2.amazonaws.com/" + fileKey;
-
-        final Clip clip = Clip.builder()
-                .uploader(uploader)
-                .caption(caption)
-                .videoUrl(s3Url)    // ← fileKey 대신 videoUrl에 S3 URL 저장
-                .build();
-
-        Clip saved = clipRepository.save(clip);
-
-        // #태그 / 멘션 동기화
-        hashtagService.syncClipTags(saved, caption);
-        upsertMentions(saved.getId(), caption);
-
-        // Personalize 카탈로그 업서트 (기존 업로드 로직과 동일 처리)
-        try {
-            String genres = extractGenresForPersonalize(caption); // "rock|ballad" 형식
-            personalizeCatalogService.upsertClip(saved, genres);
-        } catch (Exception e) {
-            log.warn("Personalize upsert 실패: {}", e.getMessage());
-        }
-
-        return saved;
-    }
-
     /** 컨트롤러 스트리밍 리다이렉트용 단건 조회 */
     @Transactional(readOnly = true)
     public Clip findById(Long clipId) {
@@ -469,7 +362,7 @@ public class ClipService {
 
         // URL 생성 (공백 대비)
         String safeKey = URLEncoder.encode(fileKey, StandardCharsets.UTF_8).replace("+", "%20");
-        String s3Url = "https://zanchi-prod-assets-855300093107-apne2-v2.s3.ap-northeast-2.amazonaws.com/" + safeKey;
+        String s3Url = presignService.objectUrl(safeKey);
 
         Clip clip = Clip.builder()
                 .uploader(uploader)
