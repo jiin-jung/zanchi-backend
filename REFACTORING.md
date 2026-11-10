@@ -16,14 +16,16 @@
 | 2026-06-25 | 운영 설정 기본값이 개발용으로 박혀 있음 | 운영 설정 기본값 정리 |
 | 2026-06-25 | 테스트가 실제 DB에 의존 | 테스트용 H2 프로필 적용 |
 | 2026-06-25 | 보안 의존성 중복 선언 | build.gradle 정리 |
+| 2026-11-10 | 호출되지 않는 코드 약 1,100줄과 운영에 노출된 디버그 API | 참조를 확인한 뒤 삭제, 불필요해진 Google API 키 설정 제거 (#11) |
+| 2026-11-10 | domain 계층이 web DTO를 import (의존 방향 역전) | 시그니처를 값 기반으로 바꾸고 DTO·프로젝션을 domain으로 이동 (#12) |
 
 ## 남은 문제 (2026-11 구조 분석)
 
-1. **domain이 web을 import** — `MemberService`(MemberForm), `MemberRepository`(NotificationDto), `PreferenceService`(web dto). 계층 의존 방향이 거꾸로입니다.
+1. ~~**domain이 web을 import**~~ (#12에서 해결) — `MemberService`(MemberForm), `MemberRepository`(NotificationDto), `PreferenceService`(web dto). 계층 의존 방향이 거꾸로입니다.
 2. **컨트롤러가 리포지토리를 직접 사용** — `ClipController`(리포지토리 5개), `MyRouteController`, `ProfileController`, `MemberController`, `NotificationController`, `ShowController`.
-3. **파일 저장이 두 갈래** — `S3StorageService`는 미사용, 실제 업로드는 로컬 디스크(`FileStorageService`). `StorageController`가 프리사인을 한 번 더 구현하고 버킷 설정 키도 다릅니다.
-4. **도달 불가능한 코드** — `DateRoutePlanner`와 그 전용 의존(Google Places/Routes 클라이언트, `PlaceEnricher` 등), `Spot`, `ClipRankProjection`.
+3. **파일 저장이 두 갈래** — 실제 업로드는 로컬 디스크(`FileStorageService`). `StorageController`가 프리사인을 한 번 더 구현하고 버킷 설정 키도 다릅니다.
+4. ~~**도달 불가능한 코드**~~ (#11에서 해결) — `DateRoutePlanner`와 그 전용 의존(Google Places/Routes 클라이언트, `PlaceEnricher` 등), `Spot`, `ClipRankProjection`.
 5. **경로 저장 API가 두 벌** — 메모리 저장 `/routes`(재시작 시 유실, 소유자 없음)와 JPA `/api/me/routes`. 프론트 사용 여부 확인 후 JPA로 일원화.
-6. **테스트·운영용 API가 운영에 노출** — `TestKakaoController`, `OpsController`에 `@Profile` 없음.
-7. **중복·불필요 추상화** — `ReservationDtos` 2벌(domain 쪽 미사용), 구현체 하나뿐인 `MemberLookupPort/Adapter`.
+6. ~~**테스트·운영용 API가 운영에 노출**~~ (#11에서 해결) — `TestKakaoController`, `OpsController`에 `@Profile` 없음.
+7. ~~**중복·불필요 추상화**~~ (#11에서 해결) — `ReservationDtos` 2벌(domain 쪽 미사용), 구현체 하나뿐인 `MemberLookupPort/Adapter`.
 8. **패키지 규칙 불일치** — 도메인마다 하위 패키지·DTO 위치가 다르고, `AiConfig`는 루트, `reco/`는 domain 밖, 컨트롤러·서비스가 `config/s3` 아래에 있습니다. 기능별 패키지(package-by-feature)로 재배치 예정.
