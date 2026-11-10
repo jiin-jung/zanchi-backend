@@ -1,7 +1,10 @@
 package com.zanchi.zanchi_backend.domain.clip.service;
 
 import com.zanchi.zanchi_backend.domain.clip.*;
+import com.zanchi.zanchi_backend.domain.clip.dto.ClipCommentRes;
+import com.zanchi.zanchi_backend.domain.clip.dto.ClipFeedRes;
 import com.zanchi.zanchi_backend.domain.clip.dto.ClipSummary;
+import com.zanchi.zanchi_backend.domain.clip.dto.ReplyCountItem;
 import com.zanchi.zanchi_backend.domain.clip.repository.*;
 import com.zanchi.zanchi_backend.domain.member.Member;
 import com.zanchi.zanchi_backend.domain.member.MemberRepository;
@@ -24,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -211,11 +215,6 @@ public class ClipService {
     }
 
     @Transactional(readOnly = true)
-    public Page<Clip> myClips(Long memberId, Pageable pageable) {
-        return clipRepository.findByUploader_IdOrderByIdDesc(memberId, pageable);
-    }
-
-    @Transactional(readOnly = true)
     public Page<Clip> searchClips(String q, Pageable pageable) {
         String s = (q == null) ? "" : q.trim();
         return clipRepository.search(s, pageable);
@@ -390,4 +389,23 @@ public class ClipService {
         // 또는 return clipRepository.findFeed(pageable);
     }
 
+    /** 상위 댓글 목록 + 댓글별 대댓글 수 (대댓글 수는 한 번의 쿼리로 조회) */
+    public Page<ClipCommentRes> getComments(Long clipId, Pageable pageable) {
+        Page<ClipComment> p = commentRepository.findByClipIdAndParentIsNullOrderByIdAsc(clipId, pageable);
+        var parentIds = p.getContent().stream().map(ClipComment::getId).toList();
+        Map<Long, Long> counts = parentIds.isEmpty() ? Map.of()
+                : commentRepository.countRepliesByParentIds(parentIds).stream()
+                .collect(Collectors.toMap(ReplyCountItem::getParentId, ReplyCountItem::getCnt));
+        return p.map(c -> ClipCommentRes.of(c, counts.getOrDefault(c.getId(), 0L)));
+    }
+
+    /** ownerId 회원의 클립 목록. viewerId(nullable)가 좋아요·저장했는지 함께 표시 */
+    public Page<ClipFeedRes> memberClips(Long ownerId, Long viewerId, Pageable pageable) {
+        Page<Clip> p = clipRepository.findByUploader_IdOrderByIdDesc(ownerId, pageable);
+        var ids = p.getContent().stream().map(Clip::getId).toList();
+        boolean lookup = viewerId != null && !ids.isEmpty();
+        Set<Long> liked = lookup ? new HashSet<>(likeRepository.findLikedClipIds(viewerId, ids)) : Set.of();
+        Set<Long> saved = lookup ? new HashSet<>(clipSaveRepository.findSavedClipIds(viewerId, ids)) : Set.of();
+        return p.map(c -> ClipFeedRes.of(c, liked.contains(c.getId()), saved.contains(c.getId())));
+    }
 }

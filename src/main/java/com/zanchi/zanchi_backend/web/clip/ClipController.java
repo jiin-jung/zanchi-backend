@@ -1,16 +1,10 @@
 package com.zanchi.zanchi_backend.web.clip;
 
 import com.zanchi.zanchi_backend.domain.clip.Clip;
-import com.zanchi.zanchi_backend.domain.clip.ClipComment;
 import com.zanchi.zanchi_backend.domain.clip.dto.*;
-import com.zanchi.zanchi_backend.domain.clip.repository.ClipCommentRepository;
-import com.zanchi.zanchi_backend.domain.clip.repository.ClipLikeRepository;
-import com.zanchi.zanchi_backend.domain.clip.repository.ClipRepository;
-import com.zanchi.zanchi_backend.domain.clip.repository.ClipSaveRepository;
 import com.zanchi.zanchi_backend.domain.clip.service.ClipService;
-import com.zanchi.zanchi_backend.domain.member.MemberRepository;
-import com.zanchi.zanchi_backend.domain.member_follow.dto.MemberSummary;
-import com.zanchi.zanchi_backend.domain.ranking.dto.ClipRankView;
+import com.zanchi.zanchi_backend.config.security.MemberPrincipal;
+import com.zanchi.zanchi_backend.domain.ranking.RankingService;
 import com.zanchi.zanchi_backend.web.clip.dto.ClipRankResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -21,11 +15,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
 import java.net.URI;
 
 @RestController
@@ -34,11 +25,7 @@ import java.net.URI;
 public class ClipController {
 
     private final ClipService clipService;
-    private final ClipCommentRepository commentRepository;
-    private final MemberRepository memberRepository;
-    private final ClipRepository clipRepository;
-    private final ClipLikeRepository clipLikeRepository;
-    private final ClipSaveRepository clipSaveRepository;
+    private final RankingService rankingService;
 
     // 2) 피드 (페이지네이션)
     @GetMapping("/api/clips/feed")
@@ -93,28 +80,7 @@ public class ClipController {
     public ResponseEntity<Page<ClipCommentRes>> comments(@PathVariable Long clipId,
                                                          @RequestParam(defaultValue = "0") int page,
                                                          @RequestParam(defaultValue = "20") int size) {
-        // 상위 댓글만 조회 (대댓글 제외)
-        Page<ClipComment> p = commentRepository.findByClipIdAndParentIsNullOrderByIdAsc(
-                clipId, PageRequest.of(page, size)
-        );
-
-        var parents = p.getContent();
-        var parentIds = parents.stream().map(ClipComment::getId).toList();
-
-        // 부모 댓글별 대댓글 개수 일괄 조회 (N+1 방지)
-        var counts = parentIds.isEmpty()
-                ? java.util.Map.<Long, Long>of()
-                : commentRepository.countRepliesByParentIds(parentIds)
-                .stream().collect(java.util.stream.Collectors.toMap(
-                        ReplyCountItem::getParentId,
-                        ReplyCountItem::getCnt
-                ));
-
-        var list = parents.stream()
-                .map(c -> ClipCommentRes.of(c, counts.getOrDefault(c.getId(), 0L)))
-                .toList();
-
-        return ResponseEntity.ok(new PageImpl<>(list, p.getPageable(), p.getTotalElements()));
+        return ResponseEntity.ok(clipService.getComments(clipId, PageRequest.of(page, size)));
     }
 
     // 5-1) 댓글 작성 (Principal 표현식 통일)
@@ -125,7 +91,7 @@ public class ClipController {
         if (memberId == null) {
             return ResponseEntity.status(401).body(Map.of("error","UNAUTHORIZED"));
         }
-        ClipComment saved = clipService.addComment(clipId, memberId, req.content());
+        var saved = clipService.addComment(clipId, memberId, req.content());
         return ResponseEntity.ok(ClipCommentRes.of(saved));
     }
 
@@ -185,50 +151,19 @@ public class ClipController {
             @RequestParam(defaultValue = "50") int size) {
         if (meId == null) return ResponseEntity.status(401).build();
 
-        Page<Clip> p = clipService.myClips(meId, PageRequest.of(page, size));
-        var ids = p.getContent().stream().map(Clip::getId).toList();
-
-        Set<Long> likedSet = ids.isEmpty() ? Set.of()
-                : new HashSet<>(clipLikeRepository.findLikedClipIds(meId, ids));
-
-        Set<Long> savedSet = ids.isEmpty() ? Set.of()
-                : new HashSet<>(clipSaveRepository.findSavedClipIds(meId, ids));
-
-        return ResponseEntity.ok(
-                p.map(c -> ClipFeedRes.of(
-                        c,
-                        likedSet.contains(c.getId()),
-                        savedSet.contains(c.getId())
-                ))
-        );
+        return ResponseEntity.ok(clipService.memberClips(meId, meId, PageRequest.of(page, size)));
     }
 
     // 다른 유저 페이지용(프로필 방문)
     @GetMapping("/api/members/{userId}/clips")
     public ResponseEntity<Page<ClipFeedRes>> userClips(
             @PathVariable Long userId,
-            @AuthenticationPrincipal(expression = "member.id") Long meId, // ← 현재 로그인 사용자(없을 수 있음)
+            @AuthenticationPrincipal MemberPrincipal me, // 비로그인이면 null
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
 
-        Page<Clip> p = clipService.myClips(userId, PageRequest.of(page, size));
-        var ids = p.getContent().stream().map(Clip::getId).toList();
-
-        Set<Long> likedSet = (meId != null && !ids.isEmpty())
-                ? new HashSet<>(clipLikeRepository.findLikedClipIds(meId, ids))
-                : Set.of();
-
-        Set<Long> savedSet = (meId != null && !ids.isEmpty())
-                ? new HashSet<>(clipSaveRepository.findSavedClipIds(meId, ids))
-                : Set.of();
-
-        return ResponseEntity.ok(
-                p.map(c -> ClipFeedRes.of(
-                        c,
-                        likedSet.contains(c.getId()),
-                        savedSet.contains(c.getId())
-                ))
-        );
+        Long meId = (me != null) ? me.getId() : null;
+        return ResponseEntity.ok(clipService.memberClips(userId, meId, PageRequest.of(page, size)));
     }
 
     // 검색
@@ -289,35 +224,16 @@ public class ClipController {
     // 가장 많은 좋아요를 받은 10개의 클립을 반환하는 API
     @GetMapping("/api/top-liked")
     public List<ClipRankResponse> getTopLikedClips(Pageable pageable) {
-        // Pageable 객체는 기본적으로 페이지와 크기를 받습니다. 예를 들어, 처음 10개를 가져옵니다.
-        Page<ClipRankView> topClips = clipRepository.findTop10ClipsByLikeCount(pageable);
-
-        // 반환할 DTO 객체로 변환
-        List<ClipRankResponse> response = topClips.stream()
-                .map(clip -> new ClipRankResponse(
-                        clip.getClipId(),
-                        clip.getUploaderName(),
-                        clip.getLikeCount()))
-                .collect(Collectors.toList());
-
-        return response;
-    }
-
-    @GetMapping("/api/members/{userId}/summary")
-    public ResponseEntity<MemberSummary> userSummary(@PathVariable Long userId) {
-        var user = memberRepository.findById(userId).orElseThrow();
-        return ResponseEntity.ok(MemberSummary.of(user)); // avatarUrl 포함되어야 함
+        return rankingService.getTopLiked(pageable).stream()
+                .map(clip -> new ClipRankResponse(clip.getClipId(), clip.getUploaderName(), clip.getLikeCount()))
+                .toList();
     }
 
     @GetMapping("/api/me/following/clips")
-    public Page<ClipSummary> myFollowingClips(Authentication auth,
+    public Page<ClipSummary> myFollowingClips(@AuthenticationPrincipal(expression = "member.id") Long userId,
                                               @RequestParam(defaultValue = "") String q,
                                               @RequestParam(defaultValue = "0") int page,
                                               @RequestParam(defaultValue = "20") int size) {
-        String loginId = auth.getName(); // JwtAuthenticationFilter 가 세팅
-        Long userId = memberRepository.findIdByLoginId(loginId)
-                .orElseThrow(() -> new IllegalStateException("로그인 사용자 id를 찾을 수 없습니다: " + loginId));
-
         var pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         return clipService.followingClips(userId, pageable, q);
     }

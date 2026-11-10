@@ -37,4 +37,9 @@ public class RankingService {
         LocalDateTime end   = start.plusDays(1);
         return clipRepository.findRankingByShowAndDate(showId, start, end, pageable);
     }
+
+    /** 좋아요 수 상위 클립 */
+    public Page<ClipRankView> getTopLiked(Pageable pageable) {
+        return clipRepository.findTop10ClipsByLikeCount(pageable);
+    }
 }
