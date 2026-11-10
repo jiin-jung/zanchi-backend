@@ -1,21 +1,15 @@
 package com.zanchi.zanchi_backend.web.ai;
 
 import com.zanchi.zanchi_backend.domain.ai.RoutePlan;
-import com.zanchi.zanchi_backend.domain.ai.RoutePlanRepository;
+import com.zanchi.zanchi_backend.domain.ai.RouteService;
 import com.zanchi.zanchi_backend.domain.ai.RouteStep;
-import com.zanchi.zanchi_backend.domain.member.Member;
-import com.zanchi.zanchi_backend.domain.member.MemberRepository;
 
 
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 
 
 import java.util.*;
@@ -25,55 +19,24 @@ import java.util.*;
 @RequiredArgsConstructor
 public class MyRouteController {
 
-    private final RoutePlanRepository repo;
-    private final MemberRepository memberRepo;
-
-    // ✅ 헬퍼: Jwt만 받도록, sub 숫자/문자 모두 처리
-    private Long currentUserId(Jwt jwt){
-        if (jwt == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
-
-        String sub = jwt.getClaimAsString("sub");
-        if (sub == null || sub.isBlank())
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "JWT sub missing");
-
-        // sub이 숫자면 그대로 사용
-        try { return Long.parseLong(sub); } catch (NumberFormatException ignore) {}
-
-        // 숫자가 아니면 loginId로 Member 조회
-        return memberRepo.findByLoginId(sub)
-                .map(Member::getId)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.UNAUTHORIZED, "Member not found for loginId="+sub));
-    }
+    private final RouteService routeService;
 
     @GetMapping
-    public List<RouteDto> list(@AuthenticationPrincipal(expression = "username") String loginId){
-        Long uid = memberRepo.findByLoginId(loginId)
-                .map(Member::getId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
-        return repo.findByOwnerIdOrderByCreatedAtDesc(uid).stream().map(RouteDto::from).toList();
+    public List<RouteDto> list(@AuthenticationPrincipal(expression = "member.id") Long uid){
+        return routeService.myRoutes(uid).stream().map(RouteDto::from).toList();
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<RouteDto> get(@PathVariable Long id,
-                                        @AuthenticationPrincipal(expression = "username") String loginId){
-        Long uid = memberRepo.findByLoginId(loginId)
-                .map(Member::getId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
-        return repo.findByIdAndOwnerId(id, uid).map(RouteDto::from).map(ResponseEntity::ok)
+                                        @AuthenticationPrincipal(expression = "member.id") Long uid){
+        return routeService.myRoute(id, uid).map(RouteDto::from).map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping
-    @Transactional
     public RouteDto create(@RequestBody SaveRequest req,
-                           @AuthenticationPrincipal(expression = "username") String loginId){
-        Long uid = memberRepo.findByLoginId(loginId)
-                .map(Member::getId).orElseThrow();
-        Member owner = memberRepo.findById(uid).orElseThrow();
-
-        RoutePlan p = RoutePlan.builder()
-                .owner(owner)
+                           @AuthenticationPrincipal(expression = "member.id") Long uid){
+        var draft = RoutePlan.builder()
                 .title(nz(req.title, new java.text.SimpleDateFormat("yyyy.MM.dd").format(new java.util.Date())))
                 .companion(req.companion)
                 .mobility(req.mobility)
@@ -81,20 +44,15 @@ public class MyRouteController {
                 .startLat(req.startLat)
                 .startLng(req.startLng)
                 .totalTravelMinutes(req.totalTravelMinutes)
-                .planExplain(req.explain)    // ✅ 여기 변경
-                .build();
-
-        p.setTags(req.tags==null? List.of() : req.tags);
-        p.setSteps(req.toSteps());
-
-        return RouteDto.from(repo.save(p));
+                .planExplain(req.explain);
+        var tags = req.tags == null ? List.<String>of() : req.tags;
+        return RouteDto.from(routeService.create(uid, draft, tags, req.toSteps()));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> delete(@PathVariable Long id, @AuthenticationPrincipal Jwt jwt){
-        Long uid = currentUserId(jwt);
-        int n = repo.deleteByIdAndOwnerId(id, uid);
-        return (n>0) ? ResponseEntity.ok().build() : ResponseEntity.notFound().build();
+    public ResponseEntity<?> delete(@PathVariable Long id,
+                                    @AuthenticationPrincipal(expression = "member.id") Long uid){
+        return routeService.delete(id, uid) ? ResponseEntity.ok().build() : ResponseEntity.notFound().build();
     }
 
     private static String nz(String v, String def){ return (v!=null && !v.isBlank())? v : def; }
