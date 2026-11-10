@@ -20,7 +20,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.util.HashSet;
 import java.util.List;
@@ -40,20 +39,6 @@ public class ClipController {
     private final ClipRepository clipRepository;
     private final ClipLikeRepository clipLikeRepository;
     private final ClipSaveRepository clipSaveRepository;
-
-    // 1) 업로드 (multipart/form-data: video, caption)
-    @PostMapping(path = "/api/clips", consumes = "multipart/form-data")
-    public ResponseEntity<?> upload(
-            @RequestPart("video") MultipartFile video,
-            @RequestPart(value = "caption", required = false) String caption,
-            @AuthenticationPrincipal(expression = "member.id") Long memberId
-    ) throws Exception {
-        if (memberId == null) {
-            return ResponseEntity.status(401).body(Map.of("error","UNAUTHORIZED","msg","로그인이 필요합니다."));
-        }
-        Clip saved = clipService.upload(memberId, caption, video);
-        return ResponseEntity.ok(ClipUploadRes.of(saved));
-    }
 
     // 2) 피드 (페이지네이션)
     @GetMapping("/api/clips/feed")
@@ -179,18 +164,6 @@ public class ClipController {
             @Valid @RequestBody ClipUpdateReq req) {
         if (memberId == null) return ResponseEntity.status(401).body(Map.of("error","UNAUTHORIZED"));
         Clip updated = clipService.updateCaption(clipId, memberId, req.caption());
-        return ResponseEntity.ok(ClipUploadRes.of(updated));
-    }
-
-    // 7) 비디오 교체(+캡션 옵션) (multipart/form-data)
-    @PutMapping(path = "/api/clips/{clipId}", consumes = "multipart/form-data")
-    public ResponseEntity<?> replaceVideo(
-            @PathVariable Long clipId,
-            @RequestPart("video") MultipartFile video,
-            @RequestPart(value = "caption", required = false) String caption,
-            @AuthenticationPrincipal(expression = "member.id") Long memberId) throws Exception {
-        if (memberId == null) return ResponseEntity.status(401).body(Map.of("error","UNAUTHORIZED"));
-        Clip updated = clipService.replaceVideo(clipId, memberId, video, caption);
         return ResponseEntity.ok(ClipUploadRes.of(updated));
     }
 
@@ -349,7 +322,7 @@ public class ClipController {
         return clipService.followingClips(userId, pageable, q);
     }
 
-    // A) S3 업로드 완료 후 메타 저장(기존 multipart와 같은 URL이지만 consumes로 구분)
+    // A) S3 업로드 완료 후 메타 저장
     @PostMapping(path = "/api/clips", consumes = "application/json")
     public ResponseEntity<?> createFromS3(
             Authentication auth,
