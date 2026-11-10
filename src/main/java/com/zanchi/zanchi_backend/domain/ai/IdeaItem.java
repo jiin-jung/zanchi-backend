@@ -6,15 +6,4 @@ public record IdeaItem(
         double lat, double lng,
         String externalUrl, String mapLink,
         Double rating, Integer ratingCount) {
-
-    public static IdeaItem from(PlaceCandidateEnriched p, String role) {
-        var id = java.util.Base64.getUrlEncoder()
-                .withoutPadding()
-                .encodeToString((p.name()+"|"+p.lat()+"|"+p.lng()).getBytes());
-        return new IdeaItem(
-                id, role, p.name(), p.address(), p.lat(), p.lng(),
-                p.googleMapsUri()!=null ? p.googleMapsUri() : p.kakaoPlaceUrl(),
-                p.mapLink(), p.rating(), p.userRatingCount()
-        );
-    }
 }

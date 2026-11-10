@@ -78,26 +78,4 @@ public class AiConfig {
                         .build())
                 .build();
     }
-
-    @Bean(name = "googlePlacesWebClient")
-    public WebClient googlePlacesWebClient(
-            @Value("${app.maps.google.api-key}") String key
-    ) {
-        return WebClient.builder()
-                .baseUrl("https://places.googleapis.com")
-                .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                .defaultHeader("X-Goog-Api-Key", key)
-                .build();
-    }
-
-    @Bean(name = "googleRoutesWebClient")
-    public WebClient googleRoutesWebClient(
-            @Value("${app.maps.google.api-key}") String key
-    ) {
-        return WebClient.builder()
-                .baseUrl("https://routes.googleapis.com")
-                .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                .defaultHeader("X-Goog-Api-Key", key)
-                .build();
-    }
 }
