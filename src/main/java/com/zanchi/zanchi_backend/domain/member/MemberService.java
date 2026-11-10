@@ -2,7 +2,6 @@ package com.zanchi.zanchi_backend.domain.member;
 
 import com.zanchi.zanchi_backend.domain.member.dto.ChangeNameResponse;
 import com.zanchi.zanchi_backend.domain.member.policy.MemberDeletionPolicy;
-import com.zanchi.zanchi_backend.web.member.form.MemberForm;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -19,15 +18,15 @@ public class MemberService {
     private final PasswordEncoder passwordEncoder;
     private final MemberDeletionPolicy memberDeletionPolicy;
 
-    public void signup(MemberForm form) {
-        if (memberRepository.findByLoginId(form.getLoginId()).isPresent()) {
+    public void signup(String name, String loginId, String rawPassword) {
+        if (memberRepository.findByLoginId(loginId).isPresent()) {
             throw new IllegalArgumentException("이미 존재하는 로그인 ID입니다.");
         }
 
         Member member = Member.builder()
-                .name(form.getName())
-                .loginId(form.getLoginId())
-                .password(passwordEncoder.encode(form.getPassword()))
+                .name(name)
+                .loginId(loginId)
+                .password(passwordEncoder.encode(rawPassword))
                 .build();
 
         memberRepository.save(member);

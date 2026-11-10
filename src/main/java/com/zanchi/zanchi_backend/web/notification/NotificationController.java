@@ -6,7 +6,7 @@ import com.zanchi.zanchi_backend.domain.member.MemberRepository;
 import com.zanchi.zanchi_backend.domain.notification.entity.Notification;
 import com.zanchi.zanchi_backend.domain.notification.service.NotificationService;
 import com.zanchi.zanchi_backend.web.notification.dto.NotificationDto;
-import com.zanchi.zanchi_backend.web.notification.dto.NotificationDto.ActorBrief;
+import com.zanchi.zanchi_backend.domain.member.ActorBrief;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.http.CacheControl;

@@ -2,8 +2,8 @@ package com.zanchi.zanchi_backend.web.preference;
 
 import com.zanchi.zanchi_backend.domain.preference.service.PreferenceService;
 import com.zanchi.zanchi_backend.web.preference.dto.PreferenceSurveyRequest;
-import com.zanchi.zanchi_backend.web.preference.dto.PreferenceSurveyResultResponse;
-import com.zanchi.zanchi_backend.web.preference.dto.PreferenceTagResponse;
+import com.zanchi.zanchi_backend.domain.preference.dto.PreferenceSurveyResultResponse;
+import com.zanchi.zanchi_backend.domain.preference.dto.PreferenceTagResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;

@@ -3,6 +3,7 @@ package com.zanchi.zanchi_backend.web.notification.dto;
 
 import com.zanchi.zanchi_backend.domain.notification.entity.Notification;
 import com.zanchi.zanchi_backend.domain.notification.entity.NotificationType;
+import com.zanchi.zanchi_backend.domain.member.ActorBrief;
 import lombok.*;
 
 import java.time.LocalDateTime;
@@ -56,12 +57,5 @@ public class NotificationDto {
                 .actorNickname(nickname)
                 .actorAvatarUrl(avatarUrl)
                 .build();
-    }
-
-    /** Member 프로필 요약 프로젝션 */
-    public interface ActorBrief {
-        Long getId();
-        String getName();       // Member.name
-        String getAvatarUrl();  // Member.avatarUrl
     }
 }
